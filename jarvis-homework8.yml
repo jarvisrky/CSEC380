@@ -1,0 +1,28 @@
+---
+- name: Clone Git Repo in New Directory
+  hosts: webservers
+  vars:
+    check_directory: "/home/dpu/Documents/Week_8"
+    new_directory: "/home/dpu/Documents/repo"
+    git_repo_url: "https://www.github.com/jarvisrky/CSEC380"
+    git_branch: "main"
+
+  tasks:
+    - name: Assert that check_directory exists
+      ansible.builtin.assert:
+        that:
+          - check_directory is directory
+        fail_msg: "{{ check_directory }} does not exist"
+        success_msg: "{{ check_directory }} exists"
+
+    - name: Ensure new directory is created
+      ansible.builtin.file:
+        path: "{{ new_directory }}"
+        state: directory
+        mode: "0755"
+
+    - name: Clone Git Repo into new directory
+      ansible.builtin.git:
+        repo: "{{ git_repo_url }}"
+        dest: "{{ new_directory }}"
+        version: "{{ git_branch }}"
