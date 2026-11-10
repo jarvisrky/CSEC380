@@ -1,0 +1,93 @@
+---
+- name: Pull Postgres Podman image and build postgres table
+  hosts: webservers
+  vars:
+    postgres_image: docker.io/library/postgres
+    postgres_tag: "16"
+    container_name: jarvis-postgres
+    postgres_password: "LabPassw0rd!"   # lab only - use Ansible Vault in real life
+    db_name: labdb
+    table_name: employees
+
+  tasks:
+    - name: Pull the postgres image
+      containers.podman.podman_image:
+        name: "{{ postgres_image }}"
+        tag: "{{ postgres_tag }}"
+
+    - name: Start the postgres container
+      containers.podman.podman_container:
+        name: "{{ container_name }}"
+        image: "{{ postgres_image }}:{{ postgres_tag }}"
+        state: started
+        ports:
+          - "5432:5432"
+        env:
+          POSTGRES_PASSWORD: "{{ postgres_password }}"
+
+    - name: Wait for postgres to accept connections
+      community.postgresql.postgresql_ping:
+        login_host: localhost
+        login_user: postgres
+        login_password: "{{ postgres_password }}"
+      register: pg_ping
+      until: pg_ping.is_available
+      retries: 15
+      delay: 4
+
+    - name: Create the database
+      community.postgresql.postgresql_db:
+        name: "{{ db_name }}"
+        login_host: localhost
+        login_user: postgres
+        login_password: "{{ postgres_password }}"
+
+    - name: Create the table
+      community.postgresql.postgresql_table:
+        login_db: "{{ db_name }}"
+        name: "{{ table_name }}"
+        columns:
+          - id serial PRIMARY KEY
+          - name varchar(50) NOT NULL
+          - department varchar(50)
+        login_host: localhost
+        login_user: postgres
+        login_password: "{{ postgres_password }}"
+
+    - name: Verify the table columns
+      community.postgresql.postgresql_query:
+        login_db: "{{ db_name }}"
+        query: >
+          SELECT column_name, data_type
+          FROM information_schema.columns
+          WHERE table_name = '{{ table_name }}'
+        login_host: localhost
+        login_user: postgres
+        login_password: "{{ postgres_password }}"
+      register: table_info
+
+    - name: Show table structure
+      ansible.builtin.debug:
+        var: table_info.query_result
+
+    # ---- Step 8: the three new tasks ----
+    - name: Insert an employee into the table
+      community.postgresql.postgresql_query:
+        login_db: "{{ db_name }}"
+        query: "INSERT INTO {{ table_name }} (name, department) VALUES ('Dylan Jarvis', 'IT')"
+        login_host: localhost
+        login_user: postgres
+        login_password: "{{ postgres_password }}"
+
+    - name: Query the table data
+      community.postgresql.postgresql_query:
+        login_db: "{{ db_name }}"
+        query: "SELECT * FROM {{ table_name }}"
+        login_host: localhost
+        login_user: postgres
+        login_password: "{{ postgres_password }}"
+      register: table_data
+
+    - name: Show table data
+      ansible.builtin.debug:
+        var: table_data.query_result
