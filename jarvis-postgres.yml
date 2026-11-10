@@ -5,7 +5,7 @@
     postgres_image: docker.io/library/postgres
     postgres_tag: "16"
     container_name: jarvis-postgres
-    postgres_password: "LabPassw0rd!"   # lab only - use Ansible Vault in real life
+    postgres_password: "1738!"
     db_name: labdb
     table_name: employees
 
@@ -70,7 +70,7 @@
       ansible.builtin.debug:
         var: table_info.query_result
 
-    # ---- Step 8: the three new tasks ----
+    #Step 8
     - name: Insert an employee into the table
       community.postgresql.postgresql_query:
         login_db: "{{ db_name }}"
